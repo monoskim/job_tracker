@@ -1,0 +1,53 @@
+name: Daily Job Search
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 16:00 UTC matches 8:00 AM PDT, 17:00 UTC matches 8:00 AM PST.
+    - cron: '0 16 * * *'
+    - cron: '0 17 * * *'
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Continue only at 8 AM Pacific
+        id: pacific_gate
+        run: |
+          PT_HOUR=$(TZ=America/Los_Angeles date +%H)
+          if [ "$PT_HOUR" != "08" ]; then
+            echo "Skipping run because Pacific time is not 08:00 (current hour: $PT_HOUR)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Search for jobs
+        if: steps.pacific_gate.outputs.skip != 'true'
+        env:
+          SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          JOB_QUERY: ${{ vars.JOB_QUERY }}
+          JOB_QUERIES: ${{ vars.JOB_QUERIES }}
+          JOB_SEARCH_GL: ${{ vars.JOB_SEARCH_GL || 'us' }}
+          JOB_SEARCH_HL: ${{ vars.JOB_SEARCH_HL || 'en' }}
+        run: python search_jobs.py
+
+      - name: Upload search output
+        if: steps.pacific_gate.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-job-search-results
+          path: output/
+          if-no-files-found: error
