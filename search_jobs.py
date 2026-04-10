@@ -83,9 +83,12 @@ def fetch_jobs_for_query(settings: dict[str, Any], query: str) -> list[JobResult
     response.raise_for_status()
     payload = response.json()
 
-    error_message = payload.get("error")
+    error_message = (payload.get("error") or "").strip()
     if error_message:
-        raise RuntimeError(f"SerpApi error: {error_message}")
+        # SerpApi may report no matches as an error string for some queries.
+        if "hasn't returned any results" in error_message.lower():
+            return []
+        raise RuntimeError(f"SerpApi error for query '{query}': {error_message}")
 
     organic_results = payload.get("organic_results", [])
     jobs: list[JobResult] = []
@@ -115,7 +118,13 @@ def fetch_jobs(settings: dict[str, Any]) -> list[JobResult]:
     seen_links: set[str] = set()
 
     for query in settings["queries"]:
-        for job in fetch_jobs_for_query(settings, query):
+        try:
+            query_jobs = fetch_jobs_for_query(settings, query)
+        except Exception as exc:
+            print(f"Warning: query failed and will be skipped: {query} ({exc})")
+            continue
+
+        for job in query_jobs:
             if job.link in seen_links:
                 continue
             seen_links.add(job.link)
