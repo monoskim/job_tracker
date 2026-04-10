@@ -44,7 +44,7 @@ Configure these repository settings:
 
 `JOB_QUERIES` takes precedence over `JOB_QUERY`. If neither is provided, the three default queries above are used.
 
-The workflow is set up to execute at 8:00 AM Pacific year-round. Because GitHub cron is UTC-based, it uses `0 16 * * *` and `0 17 * * *` plus a Pacific-time gate step so only the true 8:00 AM PT run continues.
+The workflow is set up to execute at 8:00 AM Pacific year-round. Because GitHub cron is UTC-based, it uses `0 16 * * *` and `0 17 * * *` plus a Pacific-time gate step so only the true 8:00 AM PT scheduled run continues. Manual `workflow_dispatch` runs bypass the time gate so you can test anytime.
 
 Each run publishes:
 

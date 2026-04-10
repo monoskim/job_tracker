@@ -25,6 +25,7 @@ jobs:
 
       - name: Continue only at 8 AM Pacific
         id: pacific_gate
+        if: github.event_name != 'workflow_dispatch'
         run: |
           PT_HOUR=$(TZ=America/Los_Angeles date +%H)
           if [ "$PT_HOUR" != "08" ]; then
@@ -35,7 +36,7 @@ jobs:
           fi
 
       - name: Search for jobs
-        if: steps.pacific_gate.outputs.skip != 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.pacific_gate.outputs.skip != 'true'
         env:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           JOB_QUERY: ${{ vars.JOB_QUERY }}
@@ -45,7 +46,7 @@ jobs:
         run: python search_jobs.py
 
       - name: Upload search output
-        if: steps.pacific_gate.outputs.skip != 'true'
+        if: github.event_name == 'workflow_dispatch' || steps.pacific_gate.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: daily-job-search-results
