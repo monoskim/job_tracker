@@ -12,6 +12,16 @@ from dotenv import load_dotenv
 
 
 SERPAPI_URL = "https://serpapi.com/search.json"
+DEFAULT_REMOTE_CLAUSE = '(remote OR "work from home") -hybrid -"on-site" -onsite'
+DEFAULT_FIRST_HIRE_CLAUSE = (
+    '("first data" OR "founding data" OR "first data hire" OR '
+    '"first analytics engineer" OR "first data engineer" OR "build the data function")'
+)
+DEFAULT_NO_EXISTING_TEAM_CLAUSE = (
+    '-"existing data team" -"join our data team" -"work with our data team" '
+    '-"partner with the data team" -"growing data team" -"data team of" '
+    '-"our team of data engineers"'
+)
 DEFAULT_QUERIES = [
     (
         'site:boards.greenhouse.io/ ("first data" OR "founding data" OR '
@@ -45,6 +55,14 @@ class JobResult:
     detected_date: str | None
 
 
+def ensure_clause(query: str, clause: str) -> str:
+    lowered_query = query.lower()
+    lowered_clause = clause.lower()
+    if lowered_clause in lowered_query:
+        return query
+    return f"{query} {clause}".strip()
+
+
 def load_settings() -> dict[str, Any]:
     load_dotenv()
 
@@ -60,9 +78,29 @@ def load_settings() -> dict[str, Any]:
         single_query = os.getenv("JOB_QUERY", "").strip()
         queries = [single_query] if single_query else list(DEFAULT_QUERIES)
 
+    remote_clause = os.getenv("JOB_REMOTE_CLAUSE", DEFAULT_REMOTE_CLAUSE).strip() or DEFAULT_REMOTE_CLAUSE
+    first_hire_clause = (
+        os.getenv("JOB_FIRST_HIRE_CLAUSE", DEFAULT_FIRST_HIRE_CLAUSE).strip()
+        or DEFAULT_FIRST_HIRE_CLAUSE
+    )
+    no_existing_team_clause = (
+        os.getenv("JOB_NO_EXISTING_TEAM_CLAUSE", DEFAULT_NO_EXISTING_TEAM_CLAUSE).strip()
+        or DEFAULT_NO_EXISTING_TEAM_CLAUSE
+    )
+
+    enforced_queries: list[str] = []
+    for query in queries:
+        query_with_filters = ensure_clause(query, remote_clause)
+        query_with_filters = ensure_clause(query_with_filters, first_hire_clause)
+        query_with_filters = ensure_clause(query_with_filters, no_existing_team_clause)
+        enforced_queries.append(query_with_filters)
+
     return {
         "api_key": api_key,
-        "queries": queries,
+        "queries": enforced_queries,
+        "remote_clause": remote_clause,
+        "first_hire_clause": first_hire_clause,
+        "no_existing_team_clause": no_existing_team_clause,
         "gl": os.getenv("JOB_SEARCH_GL", "us").strip() or "us",
         "hl": os.getenv("JOB_SEARCH_HL", "en").strip() or "en",
     }
@@ -133,13 +171,23 @@ def fetch_jobs(settings: dict[str, Any]) -> list[JobResult]:
     return combined_jobs
 
 
-def build_markdown_report(queries: list[str], jobs: list[JobResult], generated_at: str) -> str:
+def build_markdown_report(
+    queries: list[str],
+    jobs: list[JobResult],
+    generated_at: str,
+    remote_clause: str,
+    first_hire_clause: str,
+    no_existing_team_clause: str,
+) -> str:
     lines = [
         "# Daily Job Search Report",
         "",
         f"Generated at: {generated_at}",
         "",
         "Queries:",
+        f"Remote clause enforced: {remote_clause}",
+        f"First-hire clause enforced: {first_hire_clause}",
+        f"No-existing-team clause enforced: {no_existing_team_clause}",
         "Google freshness filter: results from the last 24 hours (`tbs=qdr:d`).",
         "",
     ]
@@ -171,7 +219,14 @@ def build_markdown_report(queries: list[str], jobs: list[JobResult], generated_a
     return "\n".join(lines)
 
 
-def write_outputs(queries: list[str], jobs: list[JobResult], generated_at: str) -> None:
+def write_outputs(
+    queries: list[str],
+    jobs: list[JobResult],
+    generated_at: str,
+    remote_clause: str,
+    first_hire_clause: str,
+    no_existing_team_clause: str,
+) -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     payload: dict[str, Any] = {
@@ -180,6 +235,9 @@ def write_outputs(queries: list[str], jobs: list[JobResult], generated_at: str) 
         "filters": {
             "tbs": "qdr:d",
             "description": "Google last 24 hours filter",
+            "remote_clause": remote_clause,
+            "first_hire_clause": first_hire_clause,
+            "no_existing_team_clause": no_existing_team_clause,
         },
         "result_count": len(jobs),
         "results": [asdict(job) for job in jobs],
@@ -187,7 +245,14 @@ def write_outputs(queries: list[str], jobs: list[JobResult], generated_at: str) 
 
     JSON_OUTPUT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    markdown_report = build_markdown_report(queries, jobs, generated_at)
+    markdown_report = build_markdown_report(
+        queries,
+        jobs,
+        generated_at,
+        remote_clause,
+        first_hire_clause,
+        no_existing_team_clause,
+    )
     MARKDOWN_OUTPUT_PATH.write_text(markdown_report, encoding="utf-8")
 
     step_summary_path = os.getenv("GITHUB_STEP_SUMMARY", "").strip()
@@ -199,7 +264,14 @@ def main() -> None:
     settings = load_settings()
     jobs = fetch_jobs(settings)
     generated_at = datetime.now(UTC).isoformat(timespec="seconds")
-    write_outputs(settings["queries"], jobs, generated_at)
+    write_outputs(
+        settings["queries"],
+        jobs,
+        generated_at,
+        settings["remote_clause"],
+        settings["first_hire_clause"],
+        settings["no_existing_team_clause"],
+    )
     print(f"Wrote {len(jobs)} job result(s) to {JSON_OUTPUT_PATH} and {MARKDOWN_OUTPUT_PATH}.")
 
 

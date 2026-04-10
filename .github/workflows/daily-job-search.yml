@@ -41,6 +41,9 @@ jobs:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
           JOB_QUERY: ${{ vars.JOB_QUERY }}
           JOB_QUERIES: ${{ vars.JOB_QUERIES }}
+          JOB_REMOTE_CLAUSE: ${{ vars.JOB_REMOTE_CLAUSE }}
+          JOB_FIRST_HIRE_CLAUSE: ${{ vars.JOB_FIRST_HIRE_CLAUSE }}
+          JOB_NO_EXISTING_TEAM_CLAUSE: ${{ vars.JOB_NO_EXISTING_TEAM_CLAUSE }}
           JOB_SEARCH_GL: ${{ vars.JOB_SEARCH_GL || 'us' }}
           JOB_SEARCH_HL: ${{ vars.JOB_SEARCH_HL || 'en' }}
         run: python search_jobs.py
