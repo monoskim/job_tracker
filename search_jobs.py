@@ -22,6 +22,7 @@ DEFAULT_NO_EXISTING_TEAM_CLAUSE = (
     '-"partner with the data team" -"growing data team" -"data team of" '
     '-"our team of data engineers"'
 )
+TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 DEFAULT_QUERIES = [
     (
         'site:boards.greenhouse.io/ ("first data" OR "founding data" OR '
@@ -102,8 +103,8 @@ def load_settings() -> dict[str, Any]:
         "first_hire_clause": first_hire_clause,
         "no_existing_team_clause": no_existing_team_clause,
         "gl": os.getenv("JOB_SEARCH_GL", "us").strip() or "us",
-        "hl": os.getenv("JOB_SEARCH_HL", "en").strip() or "en",
-    }
+        "hl": os.getenv("JOB_SEARCH_HL", "en").strip() or "en",        "telegram_token": os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
+        "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID", "").strip(),    }
 
 
 def fetch_jobs_for_query(settings: dict[str, Any], query: str) -> list[JobResult]:
@@ -260,6 +261,39 @@ def write_outputs(
         Path(step_summary_path).write_text(markdown_report, encoding="utf-8")
 
 
+def send_telegram_notification(jobs: list[JobResult], settings: dict[str, Any]) -> None:
+    """Send a Telegram message with job listings."""
+    if not settings["telegram_token"] or not settings["telegram_chat_id"]:
+        return
+
+    if not jobs:
+        message = "🔍 Daily Job Search completed - No matching jobs found today."
+    else:
+        job_list = "\n".join(
+            [f"• <a href='{job.link}'>{job.title}</a>" for job in jobs]
+        )
+        message = (
+            f"🎯 Found {len(jobs)} job(s):\n\n{job_list}"
+        )
+
+    try:
+        url = TELEGRAM_API_URL.format(token=settings["telegram_token"])
+        response = requests.post(
+            url,
+            json={
+                "chat_id": settings["telegram_chat_id"],
+                "text": message,
+                "parse_mode": "HTML",
+                "disable_web_page_preview": False,
+            },
+            timeout=10,
+        )
+        response.raise_for_status()
+        print(f"Telegram notification sent successfully.")
+    except Exception as exc:
+        print(f"Warning: Failed to send Telegram notification: {exc}")
+
+
 def main() -> None:
     settings = load_settings()
     jobs = fetch_jobs(settings)
@@ -272,6 +306,7 @@ def main() -> None:
         settings["first_hire_clause"],
         settings["no_existing_team_clause"],
     )
+    send_telegram_notification(jobs, settings)
     print(f"Wrote {len(jobs)} job result(s) to {JSON_OUTPUT_PATH} and {MARKDOWN_OUTPUT_PATH}.")
 
 
