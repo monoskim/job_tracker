@@ -18,9 +18,6 @@ DEFAULT_FIRST_HIRE_CLAUSE = (
     '"first analytics engineer" OR "first data engineer" OR "build the data function")'
 )
 DEFAULT_NO_EXISTING_TEAM_CLAUSE = (
-    '-"existing data team" -"join our data team" -"work with our data team" '
-    '-"partner with the data team" -"growing data team" -"data team of" '
-    '-"our team of data engineers"'
 )
 TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
 DEFAULT_QUERIES = [
