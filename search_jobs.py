@@ -13,10 +13,7 @@ from dotenv import load_dotenv
 
 SERPAPI_URL = "https://serpapi.com/search.json"
 DEFAULT_REMOTE_CLAUSE = '(remote OR "work from home") -hybrid -"on-site" -onsite'
-DEFAULT_FIRST_HIRE_CLAUSE = (
-    '("first data" OR "founding data" OR "first data hire" OR '
-    '"first analytics engineer" OR "first data engineer" OR "build the data function")'
-)
+DEFAULT_FIRST_HIRE_CLAUSE = ""
 DEFAULT_NO_EXISTING_TEAM_CLAUSE = ""
 
 TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
