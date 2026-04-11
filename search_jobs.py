@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import json
 import os
 from dataclasses import asdict, dataclass
@@ -97,8 +98,10 @@ def load_settings() -> dict[str, Any]:
         "first_hire_clause": first_hire_clause,
         "no_existing_team_clause": no_existing_team_clause,
         "gl": os.getenv("JOB_SEARCH_GL", "us").strip() or "us",
-        "hl": os.getenv("JOB_SEARCH_HL", "en").strip() or "en",        "telegram_token": os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
-        "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID", "").strip(),    }
+        "hl": os.getenv("JOB_SEARCH_HL", "en").strip() or "en",
+        "telegram_token": os.getenv("TELEGRAM_BOT_TOKEN", "").strip(),
+        "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID", "").strip(),
+    }
 
 
 def fetch_jobs_for_query(settings: dict[str, Any], query: str) -> list[JobResult]:
@@ -258,17 +261,19 @@ def write_outputs(
 def send_telegram_notification(jobs: list[JobResult], settings: dict[str, Any]) -> None:
     """Send a Telegram message with job listings."""
     if not settings["telegram_token"] or not settings["telegram_chat_id"]:
+        print("Telegram notification skipped: TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is missing.")
         return
 
     if not jobs:
-        message = "🔍 Daily Job Search completed - No matching jobs found today."
+        message = "Daily Job Search completed - no matching jobs found today."
     else:
         job_list = "\n".join(
-            [f"• <a href='{job.link}'>{job.title}</a>" for job in jobs]
+            [
+                f"- <a href=\"{html.escape(job.link, quote=True)}\">{html.escape(job.title)}</a>"
+                for job in jobs
+            ]
         )
-        message = (
-            f"🎯 Found {len(jobs)} job(s):\n\n{job_list}"
-        )
+        message = f"Found {len(jobs)} job(s):\n\n{job_list}"
 
     try:
         url = TELEGRAM_API_URL.format(token=settings["telegram_token"])
