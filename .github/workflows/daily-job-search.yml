@@ -24,6 +24,8 @@ jobs:
       - name: Search for jobs
         env:
           SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           JOB_QUERY: ${{ vars.JOB_QUERY }}
           JOB_QUERIES: ${{ vars.JOB_QUERIES }}
           JOB_REMOTE_CLAUSE: ${{ vars.JOB_REMOTE_CLAUSE }}
